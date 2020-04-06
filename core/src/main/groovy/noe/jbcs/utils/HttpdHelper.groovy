@@ -150,7 +150,9 @@ class HttpdHelper {
     if (Boolean.valueOf(Library.getUniversalProperty('JWS_198_WORKAROUND', false))) {
       JBFile.replace(new File(httpdBasedir, "etc${sep}httpd${sep}conf${sep}httpd.conf"), "<Files ~ \".ht*\">", "<Files ~ \"^\\.ht\">", true)
     }
-    if ( postInstallOutput.exitValue == 0 || postInstallOutput.exitValue == 17) { // 17 means postinstall was already executed
+    // Ignore any output from the postinstall script, it should be used with caution.
+    boolean ignorePostinstallOutput = Boolean.valueOf(Library.getUniversalProperty('IGNORE_POSTINSTALL_OUTPUT', false))
+    if (ignorePostinstallOutput || postInstallOutput.exitValue == 0 || postInstallOutput.exitValue == 17) { // 17 means postinstall was already executed
       if (postInstallOutput.exitValue == 17) {
         log.warn("Postinstall was already executed for " + httpd.getServerId())
       }
@@ -158,6 +160,12 @@ class HttpdHelper {
       JBFile.createFile(httpd.getPostInstallOutFile(), postInstallOutput.stdOut)
     } else {
       throw new RuntimeException("[${httpd.serverId}] Postinstall went wrong => ${postInstallOutput}")
+    }
+
+    // Overrride the user that installed httpd
+    String OVERRIDE_INSTALL_AS_USER = Library.getUniversalProperty('OVERRIDE_INSTALL_AS_USER', '')
+    if(platform.isRHEL() && !OVERRIDE_INSTALL_AS_USER.isEmpty()) {
+      def result = commandExecution(["chown", "-R", "${OVERRIDE_INSTALL_AS_USER}:${OVERRIDE_INSTALL_AS_USER}", "${httpdBasedir}"], new File(httpdBasedir))
     }
   }
 
